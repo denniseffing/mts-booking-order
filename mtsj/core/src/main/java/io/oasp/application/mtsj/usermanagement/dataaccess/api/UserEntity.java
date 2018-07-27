@@ -1,21 +1,11 @@
 package io.oasp.application.mtsj.usermanagement.dataaccess.api;
 
-import java.util.List;
-
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.JoinColumn;
-import javax.persistence.JoinTable;
-import javax.persistence.ManyToMany;
-import javax.persistence.ManyToOne;
-import javax.persistence.OneToMany;
-import javax.persistence.Table;
-import javax.persistence.Transient;
-
 import io.oasp.application.mtsj.bookingmanagement.dataaccess.api.BookingEntity;
-import io.oasp.application.mtsj.dishmanagement.dataaccess.api.DishEntity;
 import io.oasp.application.mtsj.general.dataaccess.api.ApplicationPersistenceEntity;
 import io.oasp.application.mtsj.usermanagement.common.api.User;
+
+import javax.persistence.*;
+import java.util.List;
 
 @Entity
 @Table(name = "User")
@@ -31,7 +21,7 @@ public class UserEntity extends ApplicationPersistenceEntity implements User {
 
   private List<BookingEntity> bookings;
 
-  private List<DishEntity> favourites;
+  private List<Long> favourites;
 
   private static final long serialVersionUID = 1L;
 
@@ -110,10 +100,10 @@ public class UserEntity extends ApplicationPersistenceEntity implements User {
   /**
    * @return favourites
    */
-  @ManyToMany
-  @JoinTable(name = "UserFavourite", joinColumns = {
-  @javax.persistence.JoinColumn(name = "idUser") }, inverseJoinColumns = @javax.persistence.JoinColumn(name = "idDish"))
-  public List<DishEntity> getFavourites() {
+  @ElementCollection
+  @CollectionTable(name = "UserFavourite", joinColumns = @JoinColumn(name = "idUser"))
+  @Column(name = "idDish")
+  public List<Long> getFavourites() {
 
     return this.favourites;
   }
@@ -121,7 +111,7 @@ public class UserEntity extends ApplicationPersistenceEntity implements User {
   /**
    * @param favourites new value of {@link #getfavourites}.
    */
-  public void setFavourites(List<DishEntity> favourites) {
+  public void setFavourites(List<Long> favourites) {
 
     this.favourites = favourites;
   }

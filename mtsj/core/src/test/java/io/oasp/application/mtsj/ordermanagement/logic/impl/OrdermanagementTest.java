@@ -1,16 +1,7 @@
 package io.oasp.application.mtsj.ordermanagement.logic.impl;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import javax.inject.Inject;
-
-import org.junit.Test;
-import org.springframework.boot.test.context.SpringBootTest;
-
 import io.oasp.application.mtsj.SpringBootApp;
 import io.oasp.application.mtsj.bookingmanagement.logic.api.to.BookingEto;
-import io.oasp.application.mtsj.dishmanagement.dataaccess.api.IngredientEntity;
 import io.oasp.application.mtsj.dishmanagement.logic.api.to.DishEto;
 import io.oasp.application.mtsj.ordermanagement.common.api.exception.NoBookingException;
 import io.oasp.application.mtsj.ordermanagement.common.api.exception.NoInviteException;
@@ -22,6 +13,12 @@ import io.oasp.application.mtsj.ordermanagement.logic.api.to.OrderEto;
 import io.oasp.application.mtsj.ordermanagement.logic.api.to.OrderLineCto;
 import io.oasp.application.mtsj.ordermanagement.logic.api.to.OrderLineEto;
 import io.oasp.module.test.common.base.ComponentTest;
+import org.junit.Test;
+import org.springframework.boot.test.context.SpringBootTest;
+
+import javax.inject.Inject;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Test for {@link Ordermanagement}
@@ -42,13 +39,13 @@ public class OrdermanagementTest extends ComponentTest {
   public void doSetUp() {
 
     // extra ingredients
-    IngredientEntity i1 = new IngredientEntity();
-    i1.setId(0L);
-    IngredientEntity i2 = new IngredientEntity();
-    i2.setId(1L);
-    List<IngredientEntity> extras = new ArrayList<>();
-    extras.add(i1);
-    extras.add(i2);
+//    IngredientEntity i1 = new IngredientEntity();
+//    i1.setId(0L);
+//    IngredientEntity i2 = new IngredientEntity();
+//    i2.setId(1L);
+//    List<IngredientEntity> extras = new ArrayList<>();
+//    extras.add(i1);
+//    extras.add(i2);
 
     // Dish
     DishEto dishEto = new DishEto();

@@ -1,56 +1,33 @@
 package io.oasp.application.mtsj.ordermanagement.logic.impl;
 
-import java.math.BigDecimal;
-import java.sql.Timestamp;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
-
-import javax.annotation.security.RolesAllowed;
-import javax.inject.Inject;
-import javax.inject.Named;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.transaction.annotation.Transactional;
-
 import io.oasp.application.mtsj.bookingmanagement.common.api.datatype.BookingType;
 import io.oasp.application.mtsj.bookingmanagement.logic.api.Bookingmanagement;
-import io.oasp.application.mtsj.bookingmanagement.logic.api.to.BookingCto;
-import io.oasp.application.mtsj.bookingmanagement.logic.api.to.BookingEto;
-import io.oasp.application.mtsj.bookingmanagement.logic.api.to.BookingSearchCriteriaTo;
-import io.oasp.application.mtsj.bookingmanagement.logic.api.to.InvitedGuestEto;
-import io.oasp.application.mtsj.bookingmanagement.logic.api.to.InvitedGuestSearchCriteriaTo;
-import io.oasp.application.mtsj.dishmanagement.common.api.Ingredient;
-import io.oasp.application.mtsj.dishmanagement.dataaccess.api.IngredientEntity;
-import io.oasp.application.mtsj.dishmanagement.logic.api.Dishmanagement;
-import io.oasp.application.mtsj.dishmanagement.logic.api.to.DishCto;
+import io.oasp.application.mtsj.bookingmanagement.logic.api.to.*;
 import io.oasp.application.mtsj.dishmanagement.logic.api.to.DishEto;
 import io.oasp.application.mtsj.dishmanagement.logic.api.to.IngredientEto;
-import io.oasp.application.mtsj.general.common.api.constants.Roles;
+import io.oasp.application.mtsj.dishmanagement.service.rest.DishServiceClient;
 import io.oasp.application.mtsj.general.logic.base.AbstractComponentFacade;
 import io.oasp.application.mtsj.mailservice.Mail;
-import io.oasp.application.mtsj.ordermanagement.common.api.exception.CancelNotAllowedException;
-import io.oasp.application.mtsj.ordermanagement.common.api.exception.NoBookingException;
-import io.oasp.application.mtsj.ordermanagement.common.api.exception.NoInviteException;
-import io.oasp.application.mtsj.ordermanagement.common.api.exception.OrderAlreadyExistException;
-import io.oasp.application.mtsj.ordermanagement.common.api.exception.WrongTokenException;
+import io.oasp.application.mtsj.ordermanagement.common.api.exception.*;
 import io.oasp.application.mtsj.ordermanagement.dataaccess.api.OrderEntity;
 import io.oasp.application.mtsj.ordermanagement.dataaccess.api.OrderLineEntity;
 import io.oasp.application.mtsj.ordermanagement.dataaccess.api.dao.OrderDao;
 import io.oasp.application.mtsj.ordermanagement.dataaccess.api.dao.OrderLineDao;
 import io.oasp.application.mtsj.ordermanagement.logic.api.Ordermanagement;
-import io.oasp.application.mtsj.ordermanagement.logic.api.to.OrderCto;
-import io.oasp.application.mtsj.ordermanagement.logic.api.to.OrderEto;
-import io.oasp.application.mtsj.ordermanagement.logic.api.to.OrderLineCto;
-import io.oasp.application.mtsj.ordermanagement.logic.api.to.OrderLineEto;
-import io.oasp.application.mtsj.ordermanagement.logic.api.to.OrderLineSearchCriteriaTo;
-import io.oasp.application.mtsj.ordermanagement.logic.api.to.OrderSearchCriteriaTo;
+import io.oasp.application.mtsj.ordermanagement.logic.api.to.*;
 import io.oasp.module.jpa.common.api.to.PaginatedListTo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.transaction.annotation.Transactional;
+
+import javax.inject.Inject;
+import javax.inject.Named;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 /**
  * Implementation of component interface of ordermanagement
@@ -80,7 +57,7 @@ public class OrdermanagementImpl extends AbstractComponentFacade implements Orde
   private Bookingmanagement bookingManagement;
 
   @Inject
-  private Dishmanagement dishManagement;
+  private DishServiceClient dishServiceClient;
 
   @Inject
   private Mail mailService;
@@ -124,6 +101,11 @@ public class OrdermanagementImpl extends AbstractComponentFacade implements Orde
   @Override
   public PaginatedListTo<OrderCto> findOrderCtos(OrderSearchCriteriaTo criteria) {
 
+    return findOrderCtos(criteria, true);
+  }
+
+  private PaginatedListTo<OrderCto> findOrderCtos(OrderSearchCriteriaTo criteria, boolean fetchOrderLines) {
+
     criteria.limitMaximumPageSize(MAXIMUM_HIT_LIMIT);
     List<OrderCto> ctos = new ArrayList<>();
     PaginatedListTo<OrderEntity> orders = getOrderDao().findOrders(criteria);
@@ -137,8 +119,12 @@ public class OrdermanagementImpl extends AbstractComponentFacade implements Orde
       List<OrderLineCto> orderLinesCto = new ArrayList<>();
       for (OrderLineEntity orderLine : order.getOrderLines()) {
         OrderLineCto orderLineCto = new OrderLineCto();
-        orderLineCto.setDish(getBeanMapper().map(orderLine.getDish(), DishEto.class));
-        orderLineCto.setExtras(getBeanMapper().mapList(orderLine.getExtras(), IngredientEto.class));
+
+        // TODO: Exceptionhandling
+        if (fetchOrderLines) {
+          orderLineCto.setDish(getBeanMapper().map(this.dishServiceClient.getDish(orderLine.getDishId()), DishEto.class));
+          orderLineCto.setExtras(getBeanMapper().mapList(this.dishServiceClient.getIngredients(orderLine.getExtras()), IngredientEto.class));
+        }
         orderLineCto.setOrderLine(getBeanMapper().map(orderLine, OrderLineEto.class));
         orderLinesCto.add(orderLineCto);
       }
@@ -178,7 +164,7 @@ public class OrdermanagementImpl extends AbstractComponentFacade implements Orde
     List<OrderLineEntity> orderLineEntities = new ArrayList<>();
     for (OrderLineCto lineCto : linesCto) {
       OrderLineEntity orderLineEntity = getBeanMapper().map(lineCto, OrderLineEntity.class);
-      orderLineEntity.setExtras(getBeanMapper().mapList(lineCto.getExtras(), IngredientEntity.class));
+      orderLineEntity.setExtras(getBeanMapper().mapList(lineCto.getExtras(), Long.class));
       orderLineEntity.setDishId(lineCto.getOrderLine().getDishId());
       orderLineEntity.setAmount(lineCto.getOrderLine().getAmount());
       orderLineEntity.setComment(lineCto.getOrderLine().getComment());
@@ -199,7 +185,7 @@ public class OrdermanagementImpl extends AbstractComponentFacade implements Orde
       LOG.info("OrderLine with id '{}' has been created.", resultOrderLine.getId());
     }
 
-    sendOrderConfirmationEmail(token, resultOrderEntity);
+//    sendOrderConfirmationEmail(token, resultOrderEntity);
 
     return getBeanMapper().map(resultOrderEntity, OrderEto.class);
   }
@@ -323,7 +309,7 @@ public class OrdermanagementImpl extends AbstractComponentFacade implements Orde
 
     OrderSearchCriteriaTo criteria = new OrderSearchCriteriaTo();
     criteria.setBookingId(idBooking);
-    return findOrderCtos(criteria).getResult();
+    return findOrderCtos(criteria, false).getResult();
   }
 
   private InvitedGuestEto getInvitedGuest(String token) {
@@ -363,47 +349,53 @@ public class OrdermanagementImpl extends AbstractComponentFacade implements Orde
   }
 
   private String getContentFormatedWithCost(OrderEntity order) {
+    return "null";
 
-    OrderLineSearchCriteriaTo criteria = new OrderLineSearchCriteriaTo();
-    criteria.setOrderId(order.getId());
-    List<OrderLineEntity> orderLines = this.orderLineDao.findOrderLines(criteria).getResult();
+//    OrderLineSearchCriteriaTo criteria = new OrderLineSearchCriteriaTo();
+//    criteria.setOrderId(order.getId());
+//    List<OrderLineEntity> orderLines = this.orderLineDao.findOrderLines(criteria).getResult();
 
-    StringBuilder sb = new StringBuilder();
-    sb.append("\n");
-    BigDecimal finalPrice = BigDecimal.ZERO;
-    for (OrderLineEntity orderLine : orderLines) {
-      DishCto dishCto = this.dishManagement.findDish(orderLine.getDishId());
-      List<IngredientEto> extras = dishCto.getExtras();
-      Set<IngredientEto> set = new HashSet<>();
-      set.addAll(extras);
-      extras.clear();
-      extras.addAll(set);
-      // dish name
-      BigDecimal linePrice = BigDecimal.ZERO;
-      sb.append(dishCto.getDish().getName()).append(", x").append(orderLine.getAmount());
-      // dish cost
-      BigDecimal dishCost = dishCto.getDish().getPrice().multiply(new BigDecimal(orderLine.getAmount()));
-      linePrice = dishCost;
-      // dish selected extras
-      sb.append(". Extras: ");
-      for (Ingredient extra : extras) {
-        for (Ingredient selectedExtra : orderLine.getExtras()) {
-          if (extra.getId().equals(selectedExtra.getId())) {
-            sb.append(extra.getName()).append(",");
-            linePrice = linePrice.add(extra.getPrice());
-            break;
-          }
-        }
-      }
+// TODO: Implement microservice communication
 
-      // dish cost
-      sb.append(" ==>").append(". Dish cost: ").append(linePrice.toString());
-      sb.append("\n");
-      // increase the finalPrice of the order
-      finalPrice = finalPrice.add(linePrice);
-    }
-
-    return sb.append("Total Order cost: ").append(finalPrice.toString()).toString();
+//    StringBuilder sb = new StringBuilder();
+//    sb.append("\n");
+//    BigDecimal finalPrice = BigDecimal.ZERO;
+//    for (OrderLineEntity orderLine : orderLines) {
+//      // 1. Get dish from mts-dishes
+//      // 2.
+//
+//      DishCto dishCto = this.dishManagement.findDish(orderLine.getDishId());
+//      List<IngredientEto> extras = dishCto.getExtras();
+//      Set<IngredientEto> set = new HashSet<>();
+//      set.addAll(extras);
+//      extras.clear();
+//      extras.addAll(set);
+//      // dish name
+//      BigDecimal linePrice = BigDecimal.ZERO;
+//      sb.append(dishCto.getDish().getName()).append(", x").append(orderLine.getAmount());
+//      // dish cost
+//      BigDecimal dishCost = dishCto.getDish().getPrice().multiply(new BigDecimal(orderLine.getAmount()));
+//      linePrice = dishCost;
+//      // dish selected extras
+//      sb.append(". Extras: ");
+//      for (Ingredient extra : extras) {
+//        for (Ingredient selectedExtra : orderLine.getExtras()) {
+//          if (extra.getId().equals(selectedExtra.getId())) {
+//            sb.append(extra.getName()).append(",");
+//            linePrice = linePrice.add(extra.getPrice());
+//            break;
+//          }
+//        }
+//      }
+//
+//      // dish cost
+//      sb.append(" ==>").append(". Dish cost: ").append(linePrice.toString());
+//      sb.append("\n");
+//      // increase the finalPrice of the order
+//      finalPrice = finalPrice.add(linePrice);
+//    }
+//
+//    return sb.append("Total Order cost: ").append(finalPrice.toString()).toString();
   }
 
   private String getBookingOrGuestEmail(String token) {

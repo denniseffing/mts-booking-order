@@ -73,6 +73,13 @@
       <artifactId>spring-web</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>org.springframework.cloud</groupId>
+      <artifactId>spring-cloud-starter-feign</artifactId>
+      <scope>compile</scope>
+      <version>1.4.3.RELEASE</version>
+    </dependency>
+
     <!-- JSP -->
     <dependency>
       <groupId>javax.servlet</groupId>

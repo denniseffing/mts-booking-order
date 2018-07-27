@@ -1,13 +1,8 @@
 package io.oasp.application.mtsj.ordermanagement.dataaccess.impl.dao;
 
-import java.util.List;
-
-import javax.inject.Named;
-
 import com.mysema.query.alias.Alias;
 import com.mysema.query.jpa.impl.JPAQuery;
 import com.mysema.query.types.path.EntityPathBase;
-
 import io.oasp.application.mtsj.general.dataaccess.base.dao.ApplicationDaoImpl;
 import io.oasp.application.mtsj.ordermanagement.dataaccess.api.OrderLineEntity;
 import io.oasp.application.mtsj.ordermanagement.dataaccess.api.dao.OrderLineDao;
@@ -15,6 +10,9 @@ import io.oasp.application.mtsj.ordermanagement.logic.api.to.OrderLineSearchCrit
 import io.oasp.module.jpa.common.api.to.OrderByTo;
 import io.oasp.module.jpa.common.api.to.OrderDirection;
 import io.oasp.module.jpa.common.api.to.PaginatedListTo;
+
+import javax.inject.Named;
+import java.util.List;
 
 /**
  * This is the implementation of {@link OrderLineDao}.
@@ -48,8 +46,8 @@ public class OrderLineDaoImpl extends ApplicationDaoImpl<OrderLineEntity> implem
       query.where(Alias.$(orderline.getOrder().getId()).eq(order));
     }
     Long dish = criteria.getDishId();
-    if (dish != null && orderline.getDish() != null) {
-      query.where(Alias.$(orderline.getDish().getId()).eq(dish));
+    if (dish != null && orderline.getDishId() != null) {
+      query.where(Alias.$(orderline.getDishId()).eq(dish));
     }
     Integer amount = criteria.getAmount();
     if (amount != null) {

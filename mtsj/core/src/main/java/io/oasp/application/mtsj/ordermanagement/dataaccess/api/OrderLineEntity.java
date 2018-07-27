@@ -1,22 +1,11 @@
 package io.oasp.application.mtsj.ordermanagement.dataaccess.api;
 
-import java.util.List;
-
-import javax.persistence.Basic;
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.JoinColumn;
-import javax.persistence.JoinTable;
-import javax.persistence.ManyToMany;
-import javax.persistence.ManyToOne;
-import javax.persistence.OneToOne;
-import javax.persistence.Table;
-import javax.persistence.Transient;
-
-import io.oasp.application.mtsj.dishmanagement.dataaccess.api.DishEntity;
-import io.oasp.application.mtsj.dishmanagement.dataaccess.api.IngredientEntity;
 import io.oasp.application.mtsj.general.dataaccess.api.ApplicationPersistenceEntity;
 import io.oasp.application.mtsj.ordermanagement.common.api.OrderLine;
+
+import javax.persistence.*;
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * {@link ApplicationPersistenceEntity Entity} that represents a single {@link OrderLine} of an {@link OrderEntity}.
@@ -27,9 +16,9 @@ public class OrderLineEntity extends ApplicationPersistenceEntity implements Ord
 
   private OrderEntity order;
 
-  private DishEntity dish;
+  private Long dishId;
 
-  private List<IngredientEntity> extras;
+  private List<Long> extras;
 
   private Integer amount;
 
@@ -58,10 +47,10 @@ public class OrderLineEntity extends ApplicationPersistenceEntity implements Ord
   /**
    * @return extras
    */
-  @ManyToMany(fetch = FetchType.LAZY)
-  @JoinTable(name = "OrderDishExtraIngredient", joinColumns = {
-  @javax.persistence.JoinColumn(name = "idOrderLine") }, inverseJoinColumns = @javax.persistence.JoinColumn(name = "idIngredient"))
-  public List<IngredientEntity> getExtras() {
+  @ElementCollection
+  @CollectionTable(name = "OrderDishExtraIngredient", joinColumns = @JoinColumn(name = "idOrderLine"))
+  @Column(name = "idIngredient")
+  public List<Long> getExtras() {
 
     return this.extras;
   }
@@ -69,9 +58,9 @@ public class OrderLineEntity extends ApplicationPersistenceEntity implements Ord
   /**
    * @param extras new value of {@link #getExtras}.
    */
-  public void setExtras(List<IngredientEntity> extras) {
+  public void setExtras(List<Long> extras) {
 
-    this.extras = extras;
+    this.extras = new LinkedList<>(extras);
   }
 
   /**
@@ -133,43 +122,22 @@ public class OrderLineEntity extends ApplicationPersistenceEntity implements Ord
   }
 
   @Override
-  @Transient
+  @Column(name = "idDish")
   public Long getDishId() {
 
-    if (this.dish == null) {
+    if (this.dishId == null) {
       return null;
     }
-    return this.dish.getId();
+    return this.dishId;
   }
 
   @Override
   public void setDishId(Long dishId) {
 
     if (dishId == null) {
-      this.dish = null;
+      this.dishId = null;
     } else {
-      DishEntity dishEntity = new DishEntity();
-      dishEntity.setId(dishId);
-      this.dish = dishEntity;
+      this.dishId = dishId;
     }
   }
-
-  /**
-   * @return dish
-   */
-  @OneToOne(fetch = FetchType.EAGER)
-  @JoinColumn(name = "idDish")
-  public DishEntity getDish() {
-
-    return this.dish;
-  }
-
-  /**
-   * @param dish new value of {@link #getDish}.
-   */
-  public void setDish(DishEntity dish) {
-
-    this.dish = dish;
-  }
-
 }

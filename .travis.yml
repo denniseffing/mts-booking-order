@@ -1,0 +1,13 @@
+sudo: required
+
+services:
+  - docker
+
+language: java
+
+script:
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+  - export REPO=denniseffing/mts-booking-order
+  - export TAG=`if [ -n "$TRAVIS_TAG" ]; then echo $TRAVIS_TAG; else echo "nightly" ; fi`
+  - docker build -f Dockerfile -t $REPO:$TAG .
+  - docker push $REPO

@@ -5,7 +5,15 @@
   xsi:schemaLocation="http://dozer.sourceforge.net
           http://dozer.sourceforge.net/schema/beanmapping.xsd">
   <configuration>
+
     <stop-on-errors>true</stop-on-errors>
+
+    <custom-converters>
+      <converter type="io.oasp.application.mtsj.general.common.EntityToCustomConverter">
+        <class-a>net.sf.mmm.util.transferobject.api.EntityTo</class-a>
+        <class-b>java.lang.Long</class-b>
+      </converter>
+    </custom-converters>
 
     <copy-by-references>
       
@@ -18,8 +26,6 @@
        -->
     </copy-by-references>
   </configuration>
-
-  
 
   <!-- If a persistence entity is converted to an ETO then the original entity is stored as hidden reference.
        The modificationCounter of a persistence entity is updated by the JPA provider (hibernate) after the transaction

@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 
 import java.util.List;
 
-@FeignClient(name = "service-dishes", url = "http://mts-dishes-api")
+@FeignClient(name = "service-dishes", url = "http://mts-dishes")
 @Qualifier("dishServiceClient")
 public interface DishServiceClient {
 

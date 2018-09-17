@@ -1,5 +1,28 @@
 package io.oasp.application.mtsj.bookingmanagement.logic.impl;
 
+import io.oasp.application.mtsj.bookingmanagement.common.api.exception.CancelInviteNotAllowedException;
+import io.oasp.application.mtsj.bookingmanagement.dataaccess.api.BookingEntity;
+import io.oasp.application.mtsj.bookingmanagement.dataaccess.api.InvitedGuestEntity;
+import io.oasp.application.mtsj.bookingmanagement.dataaccess.api.TableEntity;
+import io.oasp.application.mtsj.bookingmanagement.dataaccess.api.dao.BookingDao;
+import io.oasp.application.mtsj.bookingmanagement.dataaccess.api.dao.InvitedGuestDao;
+import io.oasp.application.mtsj.bookingmanagement.dataaccess.api.dao.TableDao;
+import io.oasp.application.mtsj.bookingmanagement.logic.api.Bookingmanagement;
+import io.oasp.application.mtsj.bookingmanagement.logic.api.to.*;
+import io.oasp.application.mtsj.general.logic.base.AbstractComponentFacade;
+import io.oasp.application.mtsj.ordermanagement.logic.api.Ordermanagement;
+import io.oasp.application.mtsj.ordermanagement.logic.api.to.OrderCto;
+import io.oasp.application.mtsj.ordermanagement.logic.api.to.OrderEto;
+import io.oasp.application.mtsj.ordermanagement.logic.api.to.OrderSearchCriteriaTo;
+import io.oasp.application.mtsj.usermanagement.logic.api.to.UserEto;
+import io.oasp.module.jpa.common.api.to.PaginatedListTo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.transaction.annotation.Transactional;
+
+import javax.inject.Inject;
+import javax.inject.Named;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Timestamp;
@@ -10,40 +33,6 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-
-import javax.annotation.security.RolesAllowed;
-import javax.inject.Inject;
-import javax.inject.Named;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.transaction.annotation.Transactional;
-
-import io.oasp.application.mtsj.bookingmanagement.common.api.exception.CancelInviteNotAllowedException;
-import io.oasp.application.mtsj.bookingmanagement.dataaccess.api.BookingEntity;
-import io.oasp.application.mtsj.bookingmanagement.dataaccess.api.InvitedGuestEntity;
-import io.oasp.application.mtsj.bookingmanagement.dataaccess.api.TableEntity;
-import io.oasp.application.mtsj.bookingmanagement.dataaccess.api.dao.BookingDao;
-import io.oasp.application.mtsj.bookingmanagement.dataaccess.api.dao.InvitedGuestDao;
-import io.oasp.application.mtsj.bookingmanagement.dataaccess.api.dao.TableDao;
-import io.oasp.application.mtsj.bookingmanagement.logic.api.Bookingmanagement;
-import io.oasp.application.mtsj.bookingmanagement.logic.api.to.BookingCto;
-import io.oasp.application.mtsj.bookingmanagement.logic.api.to.BookingEto;
-import io.oasp.application.mtsj.bookingmanagement.logic.api.to.BookingSearchCriteriaTo;
-import io.oasp.application.mtsj.bookingmanagement.logic.api.to.InvitedGuestEto;
-import io.oasp.application.mtsj.bookingmanagement.logic.api.to.InvitedGuestSearchCriteriaTo;
-import io.oasp.application.mtsj.bookingmanagement.logic.api.to.TableEto;
-import io.oasp.application.mtsj.bookingmanagement.logic.api.to.TableSearchCriteriaTo;
-import io.oasp.application.mtsj.general.common.api.constants.Roles;
-import io.oasp.application.mtsj.general.logic.base.AbstractComponentFacade;
-import io.oasp.application.mtsj.mailservice.Mail;
-import io.oasp.application.mtsj.ordermanagement.logic.api.Ordermanagement;
-import io.oasp.application.mtsj.ordermanagement.logic.api.to.OrderCto;
-import io.oasp.application.mtsj.ordermanagement.logic.api.to.OrderEto;
-import io.oasp.application.mtsj.ordermanagement.logic.api.to.OrderSearchCriteriaTo;
-import io.oasp.application.mtsj.usermanagement.logic.api.to.UserEto;
-import io.oasp.module.jpa.common.api.to.PaginatedListTo;
 
 /**
  * Implementation of component interface of bookingmanagement
@@ -86,9 +75,6 @@ public class BookingmanagementImpl extends AbstractComponentFacade implements Bo
 
   @Inject
   private Ordermanagement orderManagement;
-
-  @Inject
-  private Mail mailService;
 
   /**
    * The constructor.
@@ -195,8 +181,6 @@ public class BookingmanagementImpl extends AbstractComponentFacade implements Bo
       LOG.info("OrderLine with id '{}' has been created.", resultInvitedGuest.getId());
     }
     LOG.debug("Booking with id '{}' has been created.", resultEntity.getId());
-
-    sendConfirmationEmails(resultEntity);
 
     return getBeanMapper().map(resultEntity, BookingEto.class);
   }
@@ -330,8 +314,6 @@ public class BookingmanagementImpl extends AbstractComponentFacade implements Bo
     InvitedGuestEto invited = findInvitedGuestEtos(criteria).getResult().get(0);
     invited.setAccepted(true);
     BookingCto booking = findBooking(invited.getBookingId());
-    sendConfirmationAcceptedInviteToGuest(booking, invited);
-    sendConfirmationActionToHost(booking, invited, "accepted");
     return saveInvitedGuest(invited);
   }
 
@@ -352,8 +334,6 @@ public class BookingmanagementImpl extends AbstractComponentFacade implements Bo
       this.orderManagement.deleteOrder(orderCto.getOrder().getId());
     }
     BookingCto booking = findBooking(invited.getBookingId());
-    sendConfirmationActionToHost(booking, invited, "declined");
-    sendDeclineConfirmationToGuest(booking, invited);
     return saveInvitedGuest(invited);
   }
 
@@ -396,153 +376,10 @@ public class BookingmanagementImpl extends AbstractComponentFacade implements Bo
       if (!guestsEto.isEmpty()) {
         for (InvitedGuestEto guestEto : guestsEto) {
           deleteInvitedGuest(guestEto.getId());
-          sendCancellationEmailToGuest(booking.get(0).getBooking(), guestEto);
         }
       }
       // delete booking and related orders
       deleteBooking(booking.get(0).getBooking().getId());
-      sendCancellationEmailToHost(booking.get(0).getBooking());
-    }
-  }
-
-  private void sendConfirmationEmails(BookingEntity booking) {
-
-    if (!booking.getInvitedGuests().isEmpty()) {
-      for (InvitedGuestEntity guest : booking.getInvitedGuests()) {
-        sendInviteEmailToGuest(guest, booking);
-      }
-    }
-
-    sendConfirmationEmailToHost(booking);
-  }
-
-  private void sendInviteEmailToGuest(InvitedGuestEntity guest, BookingEntity booking) {
-
-    try {
-      StringBuilder invitedMailContent = new StringBuilder();
-      invitedMailContent.append("MY THAI STAR").append("\n");
-      invitedMailContent.append("Hi ").append(guest.getEmail()).append("\n");
-      invitedMailContent.append(booking.getEmail()).append(" has invited you to an event on My Thai Star restaurant")
-          .append("\n");
-      invitedMailContent.append("Booking Date: ").append(booking.getBookingDate()).append("\n");
-
-      String linkAccept = "http://localhost:" + this.clientPort + "/booking/acceptInvite/" + guest.getGuestToken();
-
-      String linkDecline = "http://localhost:" + this.clientPort + "/booking/rejectInvite/" + guest.getGuestToken();
-
-      invitedMailContent.append("To accept: ").append(linkAccept).append("\n");
-      invitedMailContent.append("To decline: ").append(linkDecline).append("\n");
-
-      this.mailService.sendMail(guest.getEmail(), "Event invite", invitedMailContent.toString());
-    } catch (Exception e) {
-      LOG.error("Email not sent. {}", e.getMessage());
-    }
-
-  }
-
-  private void sendConfirmationEmailToHost(BookingEntity booking) {
-
-    try {
-      StringBuilder hostMailContent = new StringBuilder();
-      hostMailContent.append("MY THAI STAR").append("\n");
-      hostMailContent.append("Hi ").append(booking.getEmail()).append("\n");
-      hostMailContent.append("Your booking has been confirmed.").append("\n");
-      hostMailContent.append("Host: ").append(booking.getName()).append("<").append(booking.getEmail()).append(">")
-          .append("\n");
-      hostMailContent.append("Booking CODE: ").append(booking.getBookingToken()).append("\n");
-      hostMailContent.append("Booking Date: ").append(booking.getBookingDate()).append("\n");
-      if (!booking.getInvitedGuests().isEmpty()) {
-        hostMailContent.append("Guest list:").append("\n");
-        for (InvitedGuestEntity guest : booking.getInvitedGuests()) {
-          hostMailContent.append("-").append(guest.getEmail()).append("\n");
-        }
-      }
-      String cancellationLink = "http://localhost:" + this.clientPort + "/booking/cancel/" + booking.getBookingToken();
-      hostMailContent.append(cancellationLink).append("\n");
-      this.mailService.sendMail(booking.getEmail(), "Booking confirmation", hostMailContent.toString());
-    } catch (Exception e) {
-      LOG.error("Email not sent. {}", e.getMessage());
-    }
-  }
-
-  private void sendConfirmationAcceptedInviteToGuest(BookingCto booking, InvitedGuestEto guest) {
-
-    try {
-      StringBuilder guestMailContent = new StringBuilder();
-      guestMailContent.append("MY THAI STAR").append("\n");
-      guestMailContent.append("Hi ").append(guest.getEmail()).append("\n");
-      guestMailContent.append("You have accepted the invite to an event in our restaurant.").append("\n");
-      guestMailContent.append("Host: ").append(booking.getBooking().getName()).append("<")
-          .append(booking.getBooking().getEmail()).append(">").append("\n");
-      guestMailContent.append("Guest CODE: ").append(guest.getGuestToken()).append("\n");
-      guestMailContent.append("Booking Date: ").append(booking.getBooking().getBookingDate()).append("\n");
-
-      String cancellationLink =
-          "http://localhost:" + this.clientPort + "/booking/rejectInvite/" + guest.getGuestToken();
-
-      guestMailContent.append("To cancel invite: ").append(cancellationLink).append("\n");
-      this.mailService.sendMail(guest.getEmail(), "Invite accepted", guestMailContent.toString());
-    } catch (Exception e) {
-      LOG.error("Email not sent. {}", e.getMessage());
-    }
-  }
-
-  private void sendConfirmationActionToHost(BookingCto booking, InvitedGuestEto guest, String action) {
-
-    try {
-      StringBuilder mailContent = new StringBuilder();
-      mailContent.append("MY THAI STAR").append("\n");
-      mailContent.append("Hi ").append(booking.getBooking().getEmail()).append("\n");
-      mailContent.append(guest.getEmail()).append(" has ").append(action).append(" your invitation for the event on ")
-          .append(booking.getBooking().getBookingDate()).append("\n");
-
-      this.mailService.sendMail(booking.getBooking().getEmail(), "Invite " + action, mailContent.toString());
-    } catch (Exception e) {
-      LOG.error("Email not sent. {}", e.getMessage());
-    }
-  }
-
-  private void sendDeclineConfirmationToGuest(BookingCto booking, InvitedGuestEto guest) {
-
-    try {
-      StringBuilder guestMailContent = new StringBuilder();
-      guestMailContent.append("MY THAI STAR").append("\n");
-      guestMailContent.append("Hi ").append(guest.getEmail()).append("\n");
-      guestMailContent.append("You have declined the invitation from ").append(booking.getBooking().getName())
-          .append("<").append(booking.getBooking().getEmail()).append(">").append(" for the event on ")
-          .append(booking.getBooking().getBookingDate()).append("\n");
-
-      this.mailService.sendMail(guest.getEmail(), "Invite declined", guestMailContent.toString());
-    } catch (Exception e) {
-      LOG.error("Email not sent. {}", e.getMessage());
-    }
-  }
-
-  private void sendCancellationEmailToGuest(BookingEto booking, InvitedGuestEto guest) {
-
-    try {
-      StringBuilder mailContent = new StringBuilder();
-      mailContent.append("MY THAI STAR").append("\n");
-      mailContent.append("Hi ").append(guest.getEmail()).append("\n");
-      mailContent.append("The invitation from ").append(booking.getEmail()).append(" for the event on ")
-          .append(booking.getBookingDate()).append(" has been cancelled.").append("\n");
-      this.mailService.sendMail(guest.getEmail(), "Event cancellation", mailContent.toString());
-    } catch (Exception e) {
-      LOG.error("Email not sent. {}", e.getMessage());
-    }
-  }
-
-  private void sendCancellationEmailToHost(BookingEto booking) {
-
-    try {
-      StringBuilder mailContent = new StringBuilder();
-      mailContent.append("MY THAI STAR").append("\n");
-      mailContent.append("Hi ").append(booking.getEmail()).append("\n");
-      mailContent.append("The invitation for the event on ").append(booking.getBookingDate())
-          .append(" has been cancelled.").append("\n");
-      this.mailService.sendMail(booking.getEmail(), "Event cancellation", mailContent.toString());
-    } catch (Exception e) {
-      LOG.error("Email not sent. {}", e.getMessage());
     }
   }
 

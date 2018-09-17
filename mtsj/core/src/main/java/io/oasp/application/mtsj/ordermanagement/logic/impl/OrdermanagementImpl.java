@@ -7,7 +7,6 @@ import io.oasp.application.mtsj.dishmanagement.logic.api.to.DishEto;
 import io.oasp.application.mtsj.dishmanagement.logic.api.to.IngredientEto;
 import io.oasp.application.mtsj.dishmanagement.service.rest.DishServiceClient;
 import io.oasp.application.mtsj.general.logic.base.AbstractComponentFacade;
-import io.oasp.application.mtsj.mailservice.Mail;
 import io.oasp.application.mtsj.ordermanagement.common.api.exception.*;
 import io.oasp.application.mtsj.ordermanagement.dataaccess.api.OrderEntity;
 import io.oasp.application.mtsj.ordermanagement.dataaccess.api.OrderLineEntity;
@@ -58,9 +57,6 @@ public class OrdermanagementImpl extends AbstractComponentFacade implements Orde
 
   @Inject
   private DishServiceClient dishServiceClient;
-
-  @Inject
-  private Mail mailService;
 
   @Value("${client.port}")
   private int clientPort;
@@ -325,27 +321,6 @@ public class OrdermanagementImpl extends AbstractComponentFacade implements Orde
     OrderSearchCriteriaTo criteria = new OrderSearchCriteriaTo();
     criteria.setInvitedGuestId(idInvitedGuest);
     return findOrderCtos(criteria).getResult();
-  }
-
-  private void sendOrderConfirmationEmail(String token, OrderEntity order) {
-
-    Objects.requireNonNull(token, "token");
-    Objects.requireNonNull(order, "order");
-    try {
-      String emailTo = getBookingOrGuestEmail(token);
-      StringBuilder mailContent = new StringBuilder();
-
-      mailContent.append("MY THAI STAR").append("\n");
-      mailContent.append("Hi ").append(emailTo).append("\n");
-      mailContent.append("Your order has been created.").append("\n");
-      mailContent.append(getContentFormatedWithCost(order)).append("\n");
-      mailContent.append("\n").append("Link to cancel order: ");
-      String link = "http://localhost:" + this.clientPort + "/booking/cancelOrder/" + order.getId();
-      mailContent.append(link);
-      this.mailService.sendMail(emailTo, "Order confirmation", mailContent.toString());
-    } catch (Exception e) {
-      LOG.error("Email not sent. {}", e.getMessage());
-    }
   }
 
   private String getContentFormatedWithCost(OrderEntity order) {

@@ -116,10 +116,17 @@ public class OrdermanagementImpl extends AbstractComponentFacade implements Orde
       for (OrderLineEntity orderLine : order.getOrderLines()) {
         OrderLineCto orderLineCto = new OrderLineCto();
 
-        // TODO: Exceptionhandling
         if (fetchOrderLines) {
-          orderLineCto.setDish(getBeanMapper().map(this.dishServiceClient.getDish(orderLine.getDishId()), DishEto.class));
-          orderLineCto.setExtras(getBeanMapper().mapList(this.dishServiceClient.getIngredients(orderLine.getExtras()), IngredientEto.class));
+            try {
+                orderLineCto.setDish(getBeanMapper().map(this.dishServiceClient.getDish(orderLine.getDishId()), DishEto.class));
+            } catch (Exception e) {
+                orderLineCto.setDish(null);
+            }
+            try {
+                orderLineCto.setExtras(getBeanMapper().mapList(this.dishServiceClient.getIngredients(orderLine.getExtras()), IngredientEto.class));
+            } catch (Exception e) {
+                orderLineCto.setExtras(null);
+            }
         }
         orderLineCto.setOrderLine(getBeanMapper().map(orderLine, OrderLineEto.class));
         orderLinesCto.add(orderLineCto);
